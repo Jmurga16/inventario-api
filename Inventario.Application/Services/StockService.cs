@@ -1,6 +1,7 @@
 using Inventario.Application.DTOs.Stock;
 using Inventario.Application.Interfaces;
 using Inventario.Domain.Entities;
+using Inventario.Domain.Enums;
 using Inventario.Domain.Exceptions;
 using Inventario.Domain.Interfaces.Repositories;
 using Inventario.Domain.Interfaces.Services;
@@ -29,8 +30,9 @@ public class StockService : IStockService
         if (product == null)
             throw new NotFoundException("Product", dto.ProductId);
 
+        var movementType = (MovementTypeEnum)dto.MovementTypeId;
         var previousStock = product.Quantity;
-        var newStock = CalculateNewStock(previousStock, dto.MovementTypeId, dto.Quantity);
+        var newStock = CalculateNewStock(previousStock, movementType, dto.Quantity);
 
         if (newStock < 0)
             throw new ValidationException("Insufficient stock for this operation");
@@ -54,6 +56,7 @@ public class StockService : IStockService
         await _unitOfWork.Products.UpdateAsync(product);
         await _unitOfWork.SaveChangesAsync();
 
+        // Check for low stock notification
         if (newStock < product.MinStock)
         {
             await _notificationService.CreateLowStockNotificationAsync(product.Id);
@@ -74,13 +77,13 @@ public class StockService : IStockService
         return movements.Select(MapToDto);
     }
 
-    private static int CalculateNewStock(int currentStock, int movementTypeId, int quantity)
+    private static int CalculateNewStock(int currentStock, MovementTypeEnum movementType, int quantity)
     {
-        return movementTypeId switch
+        return movementType switch
         {
-            1 => currentStock + quantity,  // IN
-            2 => currentStock - quantity,  // OUT
-            3 => quantity,                  // ADJUSTMENT (sets absolute value)
+            MovementTypeEnum.In => currentStock + quantity,
+            MovementTypeEnum.Out => currentStock - quantity,
+            MovementTypeEnum.Adjustment => quantity, // Sets absolute value
             _ => currentStock
         };
     }

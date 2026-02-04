@@ -1,7 +1,7 @@
 using Inventario.Application.DTOs.Notifications;
 using Inventario.Application.Interfaces;
 using Inventario.Domain.Entities;
-using Inventario.Domain.Exceptions;
+using Inventario.Domain.Enums;
 using Inventario.Domain.Interfaces.Repositories;
 
 namespace Inventario.Application.Services;
@@ -49,11 +49,15 @@ public class NotificationService : INotificationService
         var product = await _unitOfWork.Products.GetByIdAsync(productId);
         if (product == null) return;
 
-        var notificationTypeId = product.Quantity == 0 ? 2 : 1; // OUT_OF_STOCK or LOW_STOCK
-        var title = product.Quantity == 0
+        var notificationType = product.Quantity == 0
+            ? NotificationTypeEnum.OutOfStock
+            : NotificationTypeEnum.LowStock;
+
+        var title = notificationType == NotificationTypeEnum.OutOfStock
             ? $"Out of stock: {product.Name}"
             : $"Low stock: {product.Name}";
-        var message = product.Quantity == 0
+
+        var message = notificationType == NotificationTypeEnum.OutOfStock
             ? $"Product {product.SKU} - {product.Name} is out of stock."
             : $"Product {product.SKU} - {product.Name} has only {product.Quantity} units. Minimum required: {product.MinStock}";
 
@@ -66,7 +70,7 @@ public class NotificationService : INotificationService
             {
                 UserId = userId,
                 ProductId = productId,
-                NotificationTypeId = notificationTypeId,
+                NotificationTypeId = (int)notificationType,
                 Title = title,
                 Message = message,
                 IsRead = false
@@ -80,9 +84,7 @@ public class NotificationService : INotificationService
 
     private async Task<IEnumerable<int>> GetAdminUserIdsAsync()
     {
-        // TODO: Implement getting admin user IDs
-        // For now, return empty list
-        return await Task.FromResult(Array.Empty<int>());
+        return await _unitOfWork.Users.GetUserIdsByRoleAsync(RoleNames.Admin);
     }
 
     private static NotificationDto MapToDto(Notification notification)

@@ -1,6 +1,7 @@
 using Inventario.Application.DTOs.Auth;
 using Inventario.Application.Interfaces;
 using Inventario.Domain.Entities;
+using Inventario.Domain.Enums;
 using Inventario.Domain.Exceptions;
 using Inventario.Domain.Interfaces.Repositories;
 using Inventario.Domain.Interfaces.Services;
@@ -27,8 +28,6 @@ public class AuthService : IAuthService
     {
         var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
 
-        var PasswordHash = _passwordHasher.Hash(request.Password);
-
         if (user == null)
             throw new UnauthorizedException("Invalid credentials");
 
@@ -38,15 +37,20 @@ public class AuthService : IAuthService
         if (!user.IsActive)
             throw new UnauthorizedException("User is inactive");
 
-        var roles = await GetUserRolesAsync(user.Id);
-        var person = await GetPersonAsync(user.PersonId);
+        // Update last login
+        await _unitOfWork.Users.UpdateLastLoginAsync(user.Id);
+        await _unitOfWork.SaveChangesAsync();
+
+        // Get user data
+        var roles = await _unitOfWork.Users.GetUserRolesAsync(user.Id);
+        var person = await _unitOfWork.Users.GetPersonByIdAsync(user.PersonId);
         var token = _jwtService.GenerateToken(user, roles);
 
         return new LoginResponseDto
         {
             UserId = user.Id,
             Email = user.Email,
-            FullName = $"{person?.FirstName} {person?.LastName}".Trim(),
+            FullName = person?.FullName ?? string.Empty,
             Token = token,
             Roles = roles
         };
@@ -54,72 +58,67 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto> RegisterAsync(RegisterRequestDto request)
     {
+        // Validate email doesn't exist
         if (await _unitOfWork.Users.EmailExistsAsync(request.Email))
             throw new ValidationException("Email already exists");
 
-        var person = new Person
+        // Begin transaction for atomicity
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
         {
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            DocumentTypeId = request.DocumentTypeId,
-            DocumentNumber = request.DocumentNumber,
-            Phone = request.Phone
-        };
+            // Create person
+            var person = new Person
+            {
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                DocumentTypeId = request.DocumentTypeId,
+                DocumentNumber = request.DocumentNumber?.Trim(),
+                Phone = request.Phone?.Trim()
+            };
 
-        await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.Users.AddPersonAsync(person);
+            await _unitOfWork.SaveChangesAsync();
 
-        var user = new User
-        {
-            PersonId = person.Id,
-            Email = request.Email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
-            IsActive = true
-        };
+            // Create user
+            var user = new User
+            {
+                PersonId = person.Id,
+                Email = request.Email.ToLower().Trim(),
+                PasswordHash = _passwordHasher.Hash(request.Password),
+                IsActive = true
+            };
 
-        await _unitOfWork.Users.AddAsync(user);
-        await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.Users.AddAsync(user);
+            await _unitOfWork.SaveChangesAsync();
 
-        var defaultRole = await GetDefaultRoleAsync();
-        if (defaultRole != null)
-        {
-            await AssignRoleAsync(user.Id, defaultRole.Id);
+            // Assign default role (Empleado)
+            var defaultRole = await _unitOfWork.Users.GetRoleByNameAsync(RoleNames.Empleado);
+            if (defaultRole != null)
+            {
+                await _unitOfWork.Users.AddUserRoleAsync(user.Id, defaultRole.Id);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            await _unitOfWork.CommitTransactionAsync();
+
+            // Generate response
+            var roles = await _unitOfWork.Users.GetUserRolesAsync(user.Id);
+            var token = _jwtService.GenerateToken(user, roles);
+
+            return new LoginResponseDto
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                FullName = person.FullName,
+                Token = token,
+                Roles = roles
+            };
         }
-
-        var roles = await GetUserRolesAsync(user.Id);
-        var token = _jwtService.GenerateToken(user, roles);
-
-        return new LoginResponseDto
+        catch
         {
-            UserId = user.Id,
-            Email = user.Email,
-            FullName = $"{person.FirstName} {person.LastName}".Trim(),
-            Token = token,
-            Roles = roles
-        };
-    }
-
-    private async Task<IEnumerable<string>> GetUserRolesAsync(int userId)
-    {
-        var userRoles = await _unitOfWork.Users.GetByIdWithRolesAsync(userId);
-        // Manual query since we don't have navigation properties
-        return [];
-    }
-
-    private async Task<Person?> GetPersonAsync(int personId)
-    {
-        // Direct query to Persons
-        return null;
-    }
-
-    private async Task<Role?> GetDefaultRoleAsync()
-    {
-        // Get "Empleado" role as default
-        return null;
-    }
-
-    private async Task AssignRoleAsync(int userId, int roleId)
-    {
-        // Assign role to user
-        await Task.CompletedTask;
+            await _unitOfWork.RollbackTransactionAsync();
+            throw;
+        }
     }
 }
