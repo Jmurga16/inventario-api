@@ -28,7 +28,7 @@ public class ProductService : IProductService
 
     public async Task<IEnumerable<ProductDto>> GetAllAsync()
     {
-        var products = await _unitOfWork.Products.GetAllAsync();
+        var products = (await _unitOfWork.Products.GetAllAsync()).ToList();
         var categoryNames = await GetCategoryNamesAsync(products);
         return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
@@ -40,18 +40,20 @@ public class ProductService : IProductService
             filter.CategoryId,
             filter.IsActive);
 
+        var productList = products.ToList();
+
         if (filter.LowStockOnly == true)
         {
-            products = products.Where(p => p.Quantity < p.MinStock);
+            productList = productList.Where(p => p.Quantity < p.MinStock).ToList();
         }
 
-        var categoryNames = await GetCategoryNamesAsync(products);
-        return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
+        var categoryNames = await GetCategoryNamesAsync(productList);
+        return productList.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
 
     public async Task<IEnumerable<ProductDto>> GetLowStockAsync()
     {
-        var products = await _unitOfWork.Products.GetLowStockProductsAsync();
+        var products = (await _unitOfWork.Products.GetLowStockProductsAsync()).ToList();
         var categoryNames = await GetCategoryNamesAsync(products);
         return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
@@ -144,8 +146,10 @@ public class ProductService : IProductService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(IEnumerable<Product> products)
+    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(List<Product> products)
     {
+        if (!products.Any()) return new Dictionary<int, string>();
+
         var categoryIds = products.Select(p => p.CategoryId).Distinct().ToList();
         var categories = await _unitOfWork.Categories.GetAllAsync();
         return categories
