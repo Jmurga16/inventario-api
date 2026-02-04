@@ -126,7 +126,7 @@ WHERE Quantity > 0;
 
 -- ============================================
 -- NOTIFICACIONES DE EJEMPLO
--- NotificationTypeId: 1 = LOW_STOCK, 2 = OUT_OF_STOCK
+-- NotificationTypeId: 1 = SYSTEM, 2 = LOW_STOCK, 3 = OUT_OF_STOCK
 -- ============================================
 
 -- Productos con stock bajo
@@ -134,7 +134,7 @@ INSERT INTO Notification (UserId, ProductId, NotificationTypeId, Title, Message,
 SELECT
     1,
     p.Id,
-    1, -- NotificationType: LOW_STOCK
+    2, -- NotificationType: LOW_STOCK
     'Stock bajo: ' + p.Name,
     'El producto ' + p.SKU + ' - ' + p.Name + ' tiene solo ' + CAST(p.Quantity AS NVARCHAR(10)) + ' unidades. Mínimo requerido: ' + CAST(p.MinStock AS NVARCHAR(10)),
     0
@@ -146,7 +146,7 @@ INSERT INTO Notification (UserId, ProductId, NotificationTypeId, Title, Message,
 SELECT
     1,
     p.Id,
-    2, -- NotificationType: OUT_OF_STOCK
+    3, -- NotificationType: OUT_OF_STOCK
     'Sin stock: ' + p.Name,
     'El producto ' + p.SKU + ' - ' + p.Name + ' está agotado.',
     0

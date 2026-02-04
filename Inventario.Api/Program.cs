@@ -1,3 +1,6 @@
+using AspNetCoreRateLimit;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Inventario.Application;
 using Inventario.Infrastructure;
 using Inventario.Api.Middleware;
@@ -12,8 +15,48 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // HttpContextAccessor for CurrentUserService
 builder.Services.AddHttpContextAccessor();
 
-// Controllers
+// Rate Limiting configuration
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429;
+    options.RealIpHeader = "X-Real-IP";
+    options.ClientIdHeader = "X-ClientId";
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        // General API limit: 100 requests per minute
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100
+        },
+        // Auth endpoints: stricter limits to prevent brute force
+        new RateLimitRule
+        {
+            Endpoint = "*:/api/auth/*",
+            Period = "1m",
+            Limit = 10
+        },
+        new RateLimitRule
+        {
+            Endpoint = "*:/api/auth/*",
+            Period = "1h",
+            Limit = 50
+        }
+    };
+});
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
+
+// Controllers with FluentValidation
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
 
 // Swagger with JWT
 builder.Services.AddEndpointsApiExplorer();
@@ -23,7 +66,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Inventario API",
         Version = "v1",
-        Description = "Inventory Management System API"
+        Description = "Inventory Management System API - Touch Consulting"
     });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -52,23 +95,43 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// CORS
+// CORS - Configured for development (restrict in production)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("Development", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "http://localhost:3000",
+                "https://localhost:4200"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+
+    options.AddPolicy("Production", policy =>
+    {
+        // Configure with actual production domains
+        policy.WithOrigins("https://your-production-domain.com")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
 var app = builder.Build();
 
+// Security Headers middleware (first in pipeline)
+app.UseSecurityHeaders();
+
+// Rate Limiting middleware
+app.UseIpRateLimiting();
+
 // Exception handling middleware
 app.UseMiddleware<ExceptionMiddleware>();
 
-// Swagger
+// Swagger (only in development)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -76,7 +139,16 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+
+// Use appropriate CORS policy based on environment
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("Development");
+}
+else
+{
+    app.UseCors("Production");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

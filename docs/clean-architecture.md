@@ -1,15 +1,15 @@
 # Clean Architecture
 
-## Introducción
+## Introduccion
 
-Este proyecto implementa Clean Architecture (Arquitectura Limpia), un patrón de diseño propuesto por Robert C. Martin (Uncle Bob) que busca separar las responsabilidades del sistema en capas independientes.
+Este proyecto implementa Clean Architecture (Arquitectura Limpia), un patron de diseno propuesto por Robert C. Martin (Uncle Bob) que busca separar las responsabilidades del sistema en capas independientes.
 
 ## Principios Fundamentales
 
-1. **Independencia de frameworks**: La lógica de negocio no depende de librerías externas
+1. **Independencia de frameworks**: La logica de negocio no depende de librerias externas
 2. **Testeable**: Las reglas de negocio se pueden probar sin UI, BD o servicios externos
 3. **Independencia de UI**: La UI puede cambiar sin afectar el resto del sistema
-4. **Independencia de BD**: Puedes cambiar SQL Server por PostgreSQL sin tocar la lógica
+4. **Independencia de BD**: Puedes cambiar SQL Server por PostgreSQL sin tocar la logica
 5. **Independencia de agentes externos**: Las reglas de negocio no saben nada del mundo exterior
 
 ---
@@ -19,11 +19,11 @@ Este proyecto implementa Clean Architecture (Arquitectura Limpia), un patrón de
 ```
 inventario-api/
 │
-├── Inventario.Domain/           ← Capa más interna
-├── Inventario.Application/      ← Casos de uso
-├── Inventario.Infrastructure/   ← Implementaciones externas
-├── Inventario.Api/              ← Punto de entrada
-└── Inventario.UnitTests/        ← Pruebas
+├── Inventario.Domain/           ← Capa mas interna (entidades, interfaces)
+├── Inventario.Application/      ← Casos de uso (servicios, DTOs, validadores)
+├── Inventario.Infrastructure/   ← Implementaciones externas (EF, repositorios)
+├── Inventario.Api/              ← Punto de entrada (controllers, middleware)
+└── Inventario.UnitTests/        ← Pruebas unitarias
 ```
 
 ---
@@ -32,27 +32,41 @@ inventario-api/
 
 ### 1. Domain (Centro)
 
-**Ubicación:** `Inventario.Domain/`
+**Ubicacion:** `Inventario.Domain/`
 
-**Responsabilidad:** Contiene las entidades del negocio y los contratos (interfaces). Es la capa más estable y no depende de nada externo.
+**Responsabilidad:** Contiene las entidades del negocio y los contratos (interfaces). Es la capa mas estable y no depende de nada externo.
 
 ```
 Inventario.Domain/
 ├── Entities/              # Entidades del negocio
 │   ├── BaseEntity.cs
 │   ├── User.cs
+│   ├── Person.cs
+│   ├── Role.cs
 │   ├── Product.cs
+│   ├── Category.cs
+│   ├── StockMovement.cs
+│   ├── Notification.cs
+│   ├── AuditLog.cs
 │   └── Catalogs/
-│       └── ...
+│       ├── DocumentType.cs
+│       ├── MovementType.cs
+│       ├── NotificationType.cs
+│       └── AuditAction.cs
 │
-├── Interfaces/            # Contratos (qué se hace, no cómo)
+├── Interfaces/            # Contratos (que se hace, no como)
 │   ├── Repositories/
 │   │   ├── IBaseRepository.cs
 │   │   ├── IProductRepository.cs
+│   │   ├── ICategoryRepository.cs
+│   │   ├── IUserRepository.cs
+│   │   ├── IStockMovementRepository.cs
+│   │   ├── INotificationRepository.cs
 │   │   └── IUnitOfWork.cs
 │   └── Services/
 │       ├── IJwtService.cs
-│       └── IPasswordHasher.cs
+│       ├── IPasswordHasher.cs
+│       └── ICurrentUserService.cs
 │
 └── Exceptions/            # Excepciones de dominio
     ├── DomainException.cs
@@ -62,102 +76,113 @@ Inventario.Domain/
 
 **Dependencias:** Ninguna (solo .NET base)
 
-**Ejemplo de entidad:**
-```csharp
-namespace Inventario.Domain.Entities;
-
-public class Product : BaseEntity
-{
-    public string SKU { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public int CategoryId { get; set; }
-    public decimal UnitPrice { get; set; }
-    public int Quantity { get; set; }
-    public int MinStock { get; set; } = 5;
-
-    // Lógica de dominio
-    public bool IsLowStock => Quantity < MinStock;
-}
-```
-
-**Ejemplo de interfaz:**
-```csharp
-namespace Inventario.Domain.Interfaces.Repositories;
-
-public interface IProductRepository : IBaseRepository<Product>
-{
-    Task<Product?> GetBySkuAsync(string sku);
-    Task<IEnumerable<Product>> GetLowStockProductsAsync();
-}
-```
-
 ---
 
 ### 2. Application (Casos de Uso)
 
-**Ubicación:** `Inventario.Application/`
+**Ubicacion:** `Inventario.Application/`
 
-**Responsabilidad:** Contiene la lógica de negocio y orquesta las operaciones. Define DTOs para comunicación y servicios de aplicación.
+**Responsabilidad:** Contiene la logica de negocio, DTOs para comunicacion, servicios de aplicacion y **validadores con FluentValidation**.
 
 ```
 Inventario.Application/
 ├── DTOs/                  # Data Transfer Objects
 │   ├── Auth/
 │   │   ├── LoginRequestDto.cs
-│   │   └── LoginResponseDto.cs
+│   │   ├── LoginResponseDto.cs
+│   │   └── RegisterRequestDto.cs
 │   ├── Products/
 │   │   ├── ProductDto.cs
-│   │   └── CreateProductDto.cs
+│   │   ├── CreateProductDto.cs
+│   │   ├── UpdateProductDto.cs
+│   │   └── ProductFilterDto.cs
+│   ├── Categories/
+│   │   ├── CategoryDto.cs
+│   │   └── CreateCategoryDto.cs
+│   ├── Stock/
+│   │   ├── StockMovementDto.cs
+│   │   └── CreateStockMovementDto.cs
+│   ├── Notifications/
+│   │   └── NotificationDto.cs
 │   └── Common/
-│       └── ApiResponseDto.cs
+│       ├── ApiResponseDto.cs
+│       └── PaginatedResultDto.cs
 │
-├── Interfaces/            # Contratos de servicios de aplicación
+├── Interfaces/            # Contratos de servicios de aplicacion
 │   ├── IAuthService.cs
-│   └── IProductService.cs
+│   ├── IProductService.cs
+│   ├── ICategoryService.cs
+│   ├── IStockService.cs
+│   ├── INotificationService.cs
+│   └── IReportService.cs
 │
-├── Services/              # Implementación de casos de uso
+├── Services/              # Implementacion de casos de uso
 │   ├── AuthService.cs
-│   └── ProductService.cs
+│   ├── ProductService.cs
+│   ├── CategoryService.cs
+│   ├── StockService.cs
+│   ├── NotificationService.cs
+│   └── ReportService.cs
 │
-├── Validators/            # Validaciones (FluentValidation)
-│   └── CreateProductValidator.cs
+├── Validators/            # Validaciones con FluentValidation
+│   ├── Auth/
+│   │   ├── LoginRequestValidator.cs
+│   │   └── RegisterRequestValidator.cs
+│   ├── Products/
+│   │   ├── CreateProductValidator.cs
+│   │   └── UpdateProductValidator.cs
+│   ├── Categories/
+│   │   └── CreateCategoryValidator.cs
+│   └── Stock/
+│       └── CreateStockMovementValidator.cs
 │
-└── DependencyInjection.cs # Registro de servicios
+└── DependencyInjection.cs # Registro de servicios y validadores
 ```
 
 **Dependencias:** Solo `Inventario.Domain`
 
-**Ejemplo de servicio:**
+**Ejemplo de validador (FluentValidation):**
 ```csharp
-namespace Inventario.Application.Services;
+namespace Inventario.Application.Validators.Products;
 
-public class ProductService : IProductService
+public class CreateProductValidator : AbstractValidator<CreateProductDto>
 {
-    private readonly IUnitOfWork _unitOfWork;  // Interfaz de Domain
-
-    public ProductService(IUnitOfWork unitOfWork)
+    public CreateProductValidator()
     {
-        _unitOfWork = unitOfWork;
+        RuleFor(x => x.SKU)
+            .NotEmpty().WithMessage("SKU is required")
+            .MaximumLength(50).WithMessage("SKU cannot exceed 50 characters")
+            .Matches(@"^[a-zA-Z0-9-_]+$").WithMessage("SKU can only contain alphanumeric characters");
+
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Name is required")
+            .MaximumLength(200);
+
+        RuleFor(x => x.Quantity)
+            .GreaterThanOrEqualTo(0).WithMessage("Quantity cannot be negative");
+
+        RuleFor(x => x.UnitPrice)
+            .GreaterThanOrEqualTo(0).WithMessage("Unit price cannot be negative");
     }
+}
+```
 
-    public async Task<ProductDto> CreateAsync(CreateProductDto dto)
+**Registro automatico de validadores:**
+```csharp
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        // Validar que SKU no exista
-        if (await _unitOfWork.Products.SkuExistsAsync(dto.SKU))
-            throw new ValidationException("SKU already exists");
+        // Services
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IReportService, ReportService>();
+        // ...
 
-        // Crear entidad
-        var product = new Product
-        {
-            SKU = dto.SKU,
-            Name = dto.Name,
-            // ...
-        };
+        // Validators - registra TODOS los validadores del assembly automaticamente
+        services.AddValidatorsFromAssemblyContaining<IAuthService>();
 
-        await _unitOfWork.Products.AddAsync(product);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToDto(product);
+        return services;
     }
 }
 ```
@@ -166,102 +191,137 @@ public class ProductService : IProductService
 
 ### 3. Infrastructure (Implementaciones)
 
-**Ubicación:** `Inventario.Infrastructure/`
+**Ubicacion:** `Inventario.Infrastructure/`
 
-**Responsabilidad:** Implementa las interfaces definidas en Domain. Contiene todo lo relacionado con tecnologías externas: base de datos, servicios de email, APIs externas, etc.
+**Responsabilidad:** Implementa las interfaces definidas en Domain. Contiene todo lo relacionado con tecnologias externas: base de datos, servicios de email, APIs externas, etc.
 
 ```
 Inventario.Infrastructure/
 ├── Persistence/           # Entity Framework
 │   ├── ApplicationDbContext.cs
-│   ├── Configurations/    # Fluent API
-│   │   ├── ProductConfiguration.cs
-│   │   └── UserConfiguration.cs
-│   └── Migrations/
+│   └── EntityConfigurations.cs  # Fluent API
 │
-├── Repositories/          # Implementación de repositorios
+├── Repositories/          # Implementacion de repositorios
 │   ├── BaseRepository.cs
 │   ├── ProductRepository.cs
+│   ├── CategoryRepository.cs
+│   ├── UserRepository.cs
+│   ├── StockMovementRepository.cs
+│   ├── NotificationRepository.cs
 │   └── UnitOfWork.cs
 │
-├── Services/              # Servicios técnicos
-│   ├── JwtService.cs
-│   ├── PasswordHasher.cs
-│   └── PdfReportService.cs
+├── Services/              # Servicios tecnicos
+│   ├── JwtService.cs         # Generacion de tokens JWT
+│   ├── PasswordHasher.cs     # Hash con BCrypt
+│   └── CurrentUserService.cs # Usuario actual del request
 │
 └── DependencyInjection.cs # Registro de infraestructura
 ```
 
 **Dependencias:** `Inventario.Domain`, `Inventario.Application`, Entity Framework, BCrypt, etc.
 
-**Ejemplo de repositorio:**
-```csharp
-namespace Inventario.Infrastructure.Repositories;
-
-public class ProductRepository : BaseRepository<Product>, IProductRepository
-{
-    public ProductRepository(ApplicationDbContext context) : base(context) { }
-
-    public async Task<IEnumerable<Product>> GetLowStockProductsAsync()
-    {
-        return await _context.Products
-            .Where(p => p.IsActive && p.Quantity < p.MinStock)
-            .ToListAsync();
-    }
-}
-```
-
 ---
 
-### 4. Api (Presentación)
+### 4. Api (Presentacion)
 
-**Ubicación:** `Inventario.Api/`
+**Ubicacion:** `Inventario.Api/`
 
-**Responsabilidad:** Punto de entrada de la aplicación. Maneja HTTP, autenticación, autorización y serialización.
+**Responsabilidad:** Punto de entrada de la aplicacion. Maneja HTTP, autenticacion, autorizacion, seguridad y serializacion.
 
 ```
 Inventario.Api/
-├── Controllers/           # Endpoints
+├── Controllers/           # Endpoints (nombres en SINGULAR)
 │   ├── AuthController.cs
-│   └── ProductsController.cs
+│   ├── ProductController.cs
+│   ├── CategoryController.cs
+│   ├── StockController.cs
+│   ├── NotificationController.cs
+│   └── ReportController.cs
 │
-├── Middleware/            # Manejo de errores, logging
-│   └── ExceptionMiddleware.cs
+├── Middleware/            # Middleware personalizado
+│   ├── ExceptionMiddleware.cs      # Manejo global de errores
+│   └── SecurityHeadersMiddleware.cs # Headers de seguridad OWASP
 │
-├── Extensions/            # Configuración
-│   └── ServiceExtensions.cs
-│
-├── Program.cs             # Entry point
+├── Program.cs             # Entry point y configuracion
 ├── appsettings.json
 └── appsettings.Development.json
 ```
 
 **Dependencias:** Todas las capas (para registrar servicios)
 
-**Ejemplo de controller:**
+**Ejemplo de controller (nombre en singular):**
 ```csharp
 namespace Inventario.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/[controller]")]  // Ruta: /api/product
 [Authorize]
-public class ProductsController : ControllerBase
+public class ProductController : ControllerBase
 {
     private readonly IProductService _productService;
 
-    public ProductsController(IProductService productService)
+    public ProductController(IProductService productService)
     {
         _productService = productService;
     }
 
     [HttpPost]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult<ProductDto>> Create(CreateProductDto dto)
+    public async Task<ActionResult<ApiResponse<ProductDto>>> Create(
+        [FromBody] CreateProductDto dto)  // Validacion automatica con FluentValidation
     {
         var product = await _productService.CreateAsync(dto);
-        return CreatedAtAction(nameof(GetById), new { id = product.Id }, product);
+        return CreatedAtAction(nameof(GetById), new { id = product.Id },
+            ApiResponse<ProductDto>.Ok(product, "Product created"));
     }
 }
+```
+
+---
+
+## Seguridad (OWASP)
+
+### Middleware de Security Headers
+
+```csharp
+public class SecurityHeadersMiddleware
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        // Prevenir MIME sniffing
+        context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+
+        // Prevenir clickjacking
+        context.Response.Headers.Append("X-Frame-Options", "DENY");
+
+        // HSTS
+        context.Response.Headers.Append("Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains");
+
+        // Content Security Policy
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; frame-ancestors 'none';");
+
+        await _next(context);
+    }
+}
+```
+
+### Rate Limiting
+
+```csharp
+// Program.cs
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        // General: 100 requests/minuto
+        new RateLimitRule { Endpoint = "*", Period = "1m", Limit = 100 },
+
+        // Auth: 10 requests/minuto (prevenir fuerza bruta)
+        new RateLimitRule { Endpoint = "*:/api/auth/*", Period = "1m", Limit = 10 }
+    };
+});
 ```
 
 ---
@@ -271,17 +331,17 @@ public class ProductsController : ControllerBase
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                           API                                   │
-│                      (Controllers)                              │
+│          (Controllers, Middleware, Program.cs)                  │
 │                           │                                     │
 │                           ▼                                     │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │                    APPLICATION                           │   │
-│  │                 (Services, DTOs)                         │   │
+│  │         (Services, DTOs, Validators)                     │   │
 │  │                         │                                │   │
 │  │                         ▼                                │   │
 │  │  ┌─────────────────────────────────────────────────┐    │   │
 │  │  │                   DOMAIN                         │    │   │
-│  │  │            (Entities, Interfaces)                │    │   │
+│  │  │       (Entities, Interfaces, Exceptions)         │    │   │
 │  │  │                                                  │    │   │
 │  │  └─────────────────────────────────────────────────┘    │   │
 │  │                         ▲                                │   │
@@ -289,7 +349,7 @@ public class ProductsController : ControllerBase
 │                            │                                     │
 │  ┌─────────────────────────┴────────────────────────────────┐   │
 │  │                  INFRASTRUCTURE                           │   │
-│  │         (Repositories, DbContext, Services)               │   │
+│  │    (Repositories, DbContext, JWT, PasswordHasher)         │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -298,70 +358,59 @@ public class ProductsController : ControllerBase
 
 ---
 
-## Inyección de Dependencias
-
-Cada capa tiene su archivo `DependencyInjection.cs` que registra sus servicios:
+## Inyeccion de Dependencias
 
 **Program.cs:**
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
 // Registrar capas
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddApplication();      // Services + Validators
+builder.Services.AddInfrastructure(builder.Configuration);  // Repos + DB
+
+// Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.AddInMemoryRateLimiting();
+
+// FluentValidation auto-validation
+builder.Services.AddFluentValidationAutoValidation();
 
 var app = builder.Build();
-```
 
-**Application/DependencyInjection.cs:**
-```csharp
-public static class DependencyInjection
-{
-    public static IServiceCollection AddApplication(this IServiceCollection services)
-    {
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IProductService, ProductService>();
-        // ...
-        return services;
-    }
-}
-```
-
-**Infrastructure/DependencyInjection.cs:**
-```csharp
-public static class DependencyInjection
-{
-    public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // DbContext
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
-        // Repositories
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-        // Services
-        services.AddScoped<IJwtService, JwtService>();
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
-
-        return services;
-    }
-}
+// Middleware pipeline (orden importante)
+app.UseSecurityHeaders();    // 1. Security headers
+app.UseIpRateLimiting();     // 2. Rate limiting
+app.UseMiddleware<ExceptionMiddleware>();  // 3. Exception handling
+app.UseAuthentication();     // 4. Auth
+app.UseAuthorization();      // 5. Authorization
+app.MapControllers();        // 6. Endpoints
 ```
 
 ---
 
 ## Beneficios de esta Arquitectura
 
-| Beneficio | Descripción |
+| Beneficio | Descripcion |
 |-----------|-------------|
-| **Testeable** | Puedes mockear interfaces y probar lógica sin BD |
+| **Testeable** | Puedes mockear interfaces y probar logica sin BD |
 | **Mantenible** | Cambios en una capa no afectan otras |
-| **Escalable** | Fácil agregar nuevas funcionalidades |
-| **Flexible** | Puedes cambiar tecnologías sin tocar el negocio |
+| **Escalable** | Facil agregar nuevas funcionalidades |
+| **Flexible** | Puedes cambiar tecnologias sin tocar el negocio |
 | **Organizado** | Cada archivo tiene un lugar claro |
+| **Seguro** | Validaciones centralizadas, headers OWASP, rate limiting |
+
+---
+
+## Convenciones del Proyecto
+
+| Elemento | Convencion | Ejemplo |
+|----------|------------|---------|
+| Controllers | Singular | `ProductController`, `CategoryController` |
+| Rutas API | Singular | `/api/product`, `/api/category` |
+| DTOs | Sufijo Dto | `CreateProductDto`, `ProductDto` |
+| Validators | Sufijo Validator | `CreateProductValidator` |
+| Services | Sufijo Service | `ProductService`, `AuthService` |
+| Repositories | Sufijo Repository | `ProductRepository` |
 
 ---
 
@@ -369,3 +418,5 @@ public static class DependencyInjection
 
 - [Clean Architecture - Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Microsoft - Clean Architecture with ASP.NET Core](https://docs.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures)
+- [FluentValidation Documentation](https://docs.fluentvalidation.net/)
+- [OWASP Security Headers](https://owasp.org/www-project-secure-headers/)
