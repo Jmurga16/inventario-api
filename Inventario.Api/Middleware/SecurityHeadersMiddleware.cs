@@ -10,7 +10,7 @@ public class SecurityHeadersMiddleware
     }
 
     public async Task InvokeAsync(HttpContext context)
-    {
+    {           
         // Prevent MIME type sniffing
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
 
@@ -26,8 +26,28 @@ public class SecurityHeadersMiddleware
         // Referrer Policy
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
 
-        // Content Security Policy
-        context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none';");
+        // Content Security Policy - Más permisivo para Swagger
+        var isSwaggerPath = context.Request.Path.StartsWithSegments("/swagger");
+        
+        if (isSwaggerPath)
+        {
+            // CSP permisivo para Swagger (solo en desarrollo)
+            context.Response.Headers.Append("Content-Security-Policy", 
+                "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; " +
+                "style-src 'self' 'unsafe-inline' fonts.googleapis.com; " +
+                "font-src 'self' fonts.gstatic.com; " +
+                "img-src 'self' data: blob:; " +
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval';");
+        }
+        else
+        {
+            // CSP restrictivo para API endpoints
+            context.Response.Headers.Append("Content-Security-Policy", 
+                "default-src 'self'; " +
+                "frame-ancestors 'none'; " +
+                "object-src 'none'; " +
+                "base-uri 'self';");
+        }
 
         // Permissions Policy (formerly Feature-Policy)
         context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
