@@ -54,6 +54,9 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
 
+// Health Checks
+builder.Services.AddHealthChecks();
+
 // Controllers with FluentValidation
 builder.Services.AddControllers();
 builder.Services.AddFluentValidationAutoValidation();
@@ -154,5 +157,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health check endpoint for Docker/Kubernetes
+app.MapHealthChecks("/health");
 
 app.Run();

@@ -1,0 +1,40 @@
+version: '3.8'
+
+# Production Docker Compose - Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      # In production, use secrets management (Docker secrets, Azure Key Vault, etc.)
+      # These are placeholder values - CHANGE IN PRODUCTION
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - JwtSettings__Issuer=${JWT_ISSUER:-InventarioApi}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-InventarioApp}
+      - JwtSettings__ExpirationMinutes=${JWT_EXPIRATION:-60}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  sqlserver:
+    environment:
+      - MSSQL_SA_PASSWORD=${DB_SA_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G

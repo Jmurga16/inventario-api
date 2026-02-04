@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: inventario-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Inventario2024!Strong
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./scripts:/scripts:ro
+    networks:
+      - inventario-network
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Inventario2024!Strong" -C -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Database Initialization (runs once)
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: inventario-db-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts:ro
+    networks:
+      - inventario-network
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        echo "Waiting for SQL Server to be ready..."
+        sleep 5
+        echo "Running schema script..."
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "Inventario2024!Strong" -C -i /scripts/001_schema.sql
+        echo "Running seed script..."
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "Inventario2024!Strong" -C -d InventarioDB -i /scripts/002_seed.sql
+        echo "Database initialization complete!"
+
+  # Inventario API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventario-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=InventarioDB;User Id=sa;Password=Inventario2024!Strong;TrustServerCertificate=True;
+      - JwtSettings__SecretKey=YourSuperSecretKeyForJwtTokenGeneration2024!MustBe32CharsOrMore
+      - JwtSettings__Issuer=InventarioApi
+      - JwtSettings__Audience=InventarioApp
+      - JwtSettings__ExpirationMinutes=60
+    ports:
+      - "5000:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - inventario-network
+    restart: unless-stopped
+
+networks:
+  inventario-network:
+    driver: bridge
+
+volumes:
+  sqlserver_data:
