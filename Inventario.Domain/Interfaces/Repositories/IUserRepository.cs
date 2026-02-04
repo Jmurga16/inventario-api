@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Inventario.Domain.Entities;
 
-namespace Inventario.Domain.Interfaces.Repositories
+namespace Inventario.Domain.Interfaces.Repositories;
+
+public interface IUserRepository : IBaseRepository<User>
 {
-    public class IUserRepository
-    {
-    }
+    Task<User?> GetByEmailAsync(string email);
+    Task<User?> GetByIdWithRolesAsync(int id);
+    Task<bool> EmailExistsAsync(string email);
 }

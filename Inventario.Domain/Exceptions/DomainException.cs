@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace Inventario.Domain.Exceptions;
 
-namespace Inventario.Domain.Exceptions
+public class DomainException : Exception
 {
-    public class DomainException
-    {
-    }
+    public DomainException() : base() { }
+
+    public DomainException(string message) : base(message) { }
+
+    public DomainException(string message, Exception innerException)
+        : base(message, innerException) { }
 }

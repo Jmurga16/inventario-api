@@ -1,12 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace Inventario.Domain.Entities;
 
-namespace Inventario.Domain.Entities
+public class StockMovement : BaseEntity
 {
-    public class StockMovement
-    {
-    }
+    public int ProductId { get; set; }
+    public int MovementTypeId { get; set; }
+    public int Quantity { get; set; }
+    public int PreviousStock { get; set; }
+    public int NewStock { get; set; }
+    public string? Reason { get; set; }
+    public string? Reference { get; set; }
+    public int UserId { get; set; }
 }

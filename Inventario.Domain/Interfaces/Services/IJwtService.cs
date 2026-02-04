@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Inventario.Domain.Entities;
 
-namespace Inventario.Domain.Interfaces.Services
+namespace Inventario.Domain.Interfaces.Services;
+
+public interface IJwtService
 {
-    public class IJwtService
-    {
-    }
+    string GenerateToken(User user, IEnumerable<string> roles);
+    int? ValidateTokenAndGetUserId(string token);
 }
