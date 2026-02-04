@@ -31,12 +31,12 @@ public class UserRepository : BaseRepository<User>, IUserRepository
 
     public async Task<IEnumerable<string>> GetUserRolesAsync(int userId)
     {
-        var roleIds = await _context.UserRoles
+        var roleIds = await _context.UserRole
             .Where(ur => ur.UserId == userId)
             .Select(ur => ur.RoleId)
             .ToListAsync();
 
-        var roles = await _context.Roles
+        var roles = await _context.Role
             .Where(r => roleIds.Contains(r.Id))
             .Select(r => r.Name)
             .ToListAsync();

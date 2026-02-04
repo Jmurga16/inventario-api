@@ -27,6 +27,8 @@ public class AuthService : IAuthService
     {
         var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
 
+        var PasswordHash = _passwordHasher.Hash(request.Password);
+
         if (user == null)
             throw new UnauthorizedException("Invalid credentials");
 

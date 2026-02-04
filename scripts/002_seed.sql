@@ -56,7 +56,7 @@ VALUES
 
 INSERT INTO [User] (PersonId, Email, PasswordHash, IsActive)
 VALUES
-    (1, 'admin@inventario.com', '$2a$11$PLACEHOLDER_HASH_GENERATE_ON_APP', 1);
+    (1, 'admin@inventario.com', '$2a$11$HC.Ce7dxvxdfXvZYuDvmdOkdjRLCiTUDTPGJczx31iALGrEXxTuv6', 1);
 
 -- Asignar rol Admin al usuario administrador
 INSERT INTO UserRole (UserId, RoleId, AssignedBy)
