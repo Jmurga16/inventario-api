@@ -20,13 +20,17 @@ public class ProductService : IProductService
     public async Task<ProductDto?> GetByIdAsync(int id)
     {
         var product = await _unitOfWork.Products.GetByIdAsync(id);
-        return product == null ? null : MapToDto(product);
+        if (product == null) return null;
+
+        var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+        return MapToDto(product, category?.Name);
     }
 
     public async Task<IEnumerable<ProductDto>> GetAllAsync()
     {
         var products = await _unitOfWork.Products.GetAllAsync();
-        return products.Select(MapToDto);
+        var categoryNames = await GetCategoryNamesAsync(products);
+        return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
 
     public async Task<IEnumerable<ProductDto>> SearchAsync(ProductFilterDto filter)
@@ -41,13 +45,15 @@ public class ProductService : IProductService
             products = products.Where(p => p.Quantity < p.MinStock);
         }
 
-        return products.Select(MapToDto);
+        var categoryNames = await GetCategoryNamesAsync(products);
+        return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
 
     public async Task<IEnumerable<ProductDto>> GetLowStockAsync()
     {
         var products = await _unitOfWork.Products.GetLowStockProductsAsync();
-        return products.Select(MapToDto);
+        var categoryNames = await GetCategoryNamesAsync(products);
+        return products.Select(p => MapToDto(p, categoryNames.GetValueOrDefault(p.CategoryId)));
     }
 
     public async Task<ProductDto> CreateAsync(CreateProductDto dto)
@@ -83,7 +89,8 @@ public class ProductService : IProductService
             await _notificationService.CreateLowStockNotificationAsync(product.Id);
         }
 
-        return MapToDto(product);
+        var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+        return MapToDto(product, category?.Name);
     }
 
     public async Task<ProductDto> UpdateAsync(int id, UpdateProductDto dto)
@@ -95,9 +102,14 @@ public class ProductService : IProductService
         if (!await _unitOfWork.Categories.ExistsAsync(dto.CategoryId))
             throw new NotFoundException("Category", dto.CategoryId);
 
+        var previousQuantity = product.Quantity;
+        var previousMinStock = product.MinStock;
+        var wasLowStock = previousQuantity < previousMinStock;
+
         product.Name = dto.Name;
         product.Description = dto.Description;
         product.CategoryId = dto.CategoryId;
+        product.Quantity = dto.Quantity;
         product.UnitPrice = dto.UnitPrice;
         product.Cost = dto.Cost;
         product.MinStock = dto.MinStock;
@@ -108,7 +120,15 @@ public class ProductService : IProductService
         await _unitOfWork.Products.UpdateAsync(product);
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(product);
+        // Create notification if stock dropped below minimum
+        var isNowLowStock = product.Quantity < product.MinStock;
+        if (isNowLowStock && !wasLowStock)
+        {
+            await _notificationService.CreateLowStockNotificationAsync(product.Id);
+        }
+
+        var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+        return MapToDto(product, category?.Name);
     }
 
     public async Task DeleteAsync(int id)
@@ -124,7 +144,16 @@ public class ProductService : IProductService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    private static ProductDto MapToDto(Product product)
+    private async Task<Dictionary<int, string>> GetCategoryNamesAsync(IEnumerable<Product> products)
+    {
+        var categoryIds = products.Select(p => p.CategoryId).Distinct().ToList();
+        var categories = await _unitOfWork.Categories.GetAllAsync();
+        return categories
+            .Where(c => categoryIds.Contains(c.Id))
+            .ToDictionary(c => c.Id, c => c.Name);
+    }
+
+    private static ProductDto MapToDto(Product product, string? categoryName = null)
     {
         return new ProductDto
         {
@@ -133,6 +162,7 @@ public class ProductService : IProductService
             Name = product.Name,
             Description = product.Description,
             CategoryId = product.CategoryId,
+            CategoryName = categoryName,
             UnitPrice = product.UnitPrice,
             Cost = product.Cost,
             Quantity = product.Quantity,
