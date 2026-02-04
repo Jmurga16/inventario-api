@@ -83,7 +83,8 @@ public class ReportService : IReportService
                     columns.RelativeColumn(2);
                     columns.ConstantColumn(80);
                     columns.ConstantColumn(80);
-                    columns.ConstantColumn(100);
+                    columns.ConstantColumn(80);
+                    columns.ConstantColumn(80);
                 });
 
                 table.Header(header =>
@@ -100,12 +101,16 @@ public class ReportService : IReportService
                         .Text("Min Stock").FontColor(Colors.White).Bold();
                     header.Cell().Background(Colors.Blue.Darken2).Padding(5)
                         .Text("Unit Price").FontColor(Colors.White).Bold();
+                    header.Cell().Background(Colors.Blue.Darken2).Padding(5)
+                        .Text("Created Date").FontColor(Colors.White).Bold();
                 });
 
                 var isAlternate = false;
                 foreach (var product in products)
                 {
                     var bgColor = isAlternate ? Colors.Grey.Lighten4 : Colors.White;
+
+                    string createdDate = product.CreatedAt.ToString("dd/MM/yyyy");
 
                     table.Cell().Background(bgColor).Padding(5).Text(product.Id.ToString());
                     table.Cell().Background(bgColor).Padding(5).Text(product.Name);
@@ -115,6 +120,8 @@ public class ReportService : IReportService
                         .FontColor(product.Quantity == 0 ? Colors.Red.Darken1 : Colors.Orange.Darken2);
                     table.Cell().Background(bgColor).Padding(5).Text(product.MinStock.ToString());
                     table.Cell().Background(bgColor).Padding(5).Text($"${product.UnitPrice:N2}");
+
+                    table.Cell().Background(bgColor).Padding(5).Text(createdDate);
 
                     isAlternate = !isAlternate;
                 }
