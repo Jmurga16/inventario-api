@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Inventario.Application.DTOs.Auth;
 
-namespace Inventario.Application.Interfaces
+namespace Inventario.Application.Interfaces;
+
+public interface IAuthService
 {
-    public class IAuthService
-    {
-    }
+    Task<LoginResponseDto> LoginAsync(LoginRequestDto request);
+    Task<LoginResponseDto> RegisterAsync(RegisterRequestDto request);
 }
