@@ -11,9 +11,10 @@ Sistema de gestión de inventarios para tienda en línea, desarrollado con .NET 
 | Autenticación | JWT |
 | ORM | Entity Framework Core |
 | Validación | FluentValidation |
-| Testing | xUnit |
+| Testing | xUnit, Moq, FluentAssertions |
 | Rate Limiting | AspNetCoreRateLimit |
 | PDF Generation | QuestPDF |
+| Contenedores | Docker |
 
 ## Estructura del Proyecto
 
@@ -30,11 +31,51 @@ inventario-api/
 
 ## Requisitos Previos
 
+### Opción 1: Desarrollo Local
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [SQL Server](https://www.microsoft.com/sql-server) (LocalDB, Express o superior)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) o [VS Code](https://code.visualstudio.com/)
 
-## Configuración Inicial
+### Opción 2: Docker
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+---
+
+## Inicio Rápido con Docker
+
+La forma más fácil de ejecutar el proyecto completo:
+
+```bash
+# Clonar e iniciar
+cd inventario-api
+docker-compose up -d
+
+# Verificar que los contenedores estén corriendo
+docker-compose ps
+```
+
+Esto levanta:
+- **SQL Server** en puerto `1433`
+- **API** en puerto `5000` → http://localhost:5000
+
+Para ver logs:
+```bash
+docker-compose logs -f api
+```
+
+Para detener:
+```bash
+docker-compose down
+```
+
+Para eliminar todo (incluyendo datos):
+```bash
+docker-compose down -v
+```
+
+---
+
+## Configuración Manual (Sin Docker)
 
 ### 1. Clonar el repositorio
 
@@ -72,6 +113,8 @@ dotnet run
 ```
 
 La API estará disponible en: `https://localhost:7001` o `http://localhost:5001`
+
+---
 
 ## Endpoints Principales
 
@@ -124,6 +167,8 @@ La API estará disponible en: `https://localhost:7001` o `http://localhost:5001`
 | GET | `/api/report/low-stock` | Datos JSON | Admin |
 | GET | `/api/report/low-stock/pdf` | Descargar PDF | Admin |
 
+---
+
 ## Seguridad Implementada (OWASP)
 
 ### Protecciones Activas
@@ -151,10 +196,40 @@ Content-Security-Policy: default-src 'self'; frame-ancestors 'none';
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
+---
+
+## Pruebas Unitarias
+
+El proyecto incluye pruebas unitarias con xUnit, Moq y FluentAssertions.
+
+### Ejecutar tests
+```bash
+dotnet test
+```
+
+### Cobertura de tests
+```
+Inventario.UnitTests/
+├── Services/
+│   ├── AuthServiceTests.cs        # 5 tests
+│   ├── ProductServiceTests.cs     # 11 tests
+│   ├── CategoryServiceTests.cs    # tests
+│   └── StockServiceTests.cs       # tests
+└── Validators/
+    ├── LoginRequestValidatorTests.cs      # 6 tests
+    ├── RegisterRequestValidatorTests.cs   # tests
+    ├── CreateProductValidatorTests.cs     # 12 tests
+    └── CreateStockMovementValidatorTests.cs # tests
+```
+
+---
+
 ## Documentación
 
 - [Modelo de Datos](docs/modelo-datos.md)
 - [Clean Architecture](docs/clean-architecture.md)
+
+---
 
 ## Roles y Permisos
 
@@ -163,11 +238,15 @@ Permissions-Policy: camera=(), microphone=(), geolocation=()
 | **Admin** | Acceso completo: CRUD productos, gestión usuarios, reportes PDF |
 | **Empleado** | Solo lectura: ver productos, ver notificaciones |
 
+---
+
 ## Credenciales por Defecto
 
 | Email | Password | Rol |
 |-------|----------|-----|
 | admin@inventario.com | Admin123! | Admin |
+
+---
 
 ## Scripts Disponibles
 
@@ -187,6 +266,32 @@ dotnet run --project Inventario.Api
 # Ejecutar con hot reload
 dotnet watch --project Inventario.Api
 ```
+
+---
+
+## Docker Commands
+
+```bash
+# Construir imagen
+docker build -t inventario-api .
+
+# Iniciar con docker-compose
+docker-compose up -d
+
+# Ver logs
+docker-compose logs -f api
+
+# Detener
+docker-compose down
+
+# Detener y eliminar volúmenes
+docker-compose down -v
+
+# Reconstruir
+docker-compose up -d --build
+```
+
+---
 
 ## Validaciones Implementadas
 
@@ -213,6 +318,18 @@ dotnet watch --project Inventario.Api
 - ProductId: requerido, > 0
 - MovementTypeId: 1-3 (IN, OUT, ADJUSTMENT)
 - Quantity: > 0
+
+---
+
+## Reglas de Negocio
+
+1. **Notificaciones de stock bajo**: Se generan cuando `Quantity < MinStock`
+2. **Notificaciones de sin stock**: Se generan cuando `Quantity = 0`
+3. **Cantidad no negativa**: No se permite crear productos con cantidad negativa
+4. **SKU único**: Cada producto debe tener un SKU único
+5. **Soft delete**: Los productos se desactivan en lugar de eliminarse
+
+---
 
 ## Autor
 
