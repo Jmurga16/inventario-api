@@ -331,6 +331,95 @@ docker-compose up -d --build
 
 ---
 
+---
+
+## Checklist de Requisitos Cumplidos
+
+### 1. Módulo de Autenticación
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Inicio de sesión | ✅ | `POST /api/auth/login` con JWT |
+| Registro de usuarios | ✅ | `POST /api/auth/register` |
+| Rol Administrador (acceso completo) | ✅ | Políticas de autorización |
+| Rol Empleado (acceso limitado) | ✅ | Solo lectura de productos y notificaciones |
+
+### 2. Módulo de Productos
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Crear producto | ✅ | `POST /api/product` (Admin) |
+| Leer productos | ✅ | `GET /api/product`, `GET /api/product/{id}` |
+| Actualizar producto | ✅ | `PUT /api/product/{id}` (Admin) |
+| Eliminar producto | ✅ | `DELETE /api/product/{id}` (Admin, soft delete) |
+| Nombre | ✅ | Campo `Name` |
+| Descripción | ✅ | Campo `Description` |
+| Precio | ✅ | Campo `UnitPrice` |
+| Cantidad en inventario | ✅ | Campo `Quantity` |
+| Categoría | ✅ | Relación con tabla `Categories` |
+| Validación cantidad no negativa | ✅ | `CreateProductValidator` (Quantity >= 0) |
+
+### 3. Notificaciones de Inventario Bajo
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Notificación cuando cantidad < 5 | ✅ | `NotificationService.CheckAndCreateLowStockNotification` |
+| Envío a administrador | ✅ | Notificaciones creadas para usuarios Admin |
+
+### 4. Módulo de Reportes
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Reporte de inventario bajo | ✅ | `GET /api/report/low-stock` |
+| Generación de PDF | ✅ | `GET /api/report/low-stock/pdf` con QuestPDF |
+| Solo administrador | ✅ | Política `AdminOnly` |
+
+### 5. Frontend Responsivo
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Autenticación | ✅ | Login y registro con Angular Material |
+| Gestión de productos | ✅ | CRUD completo con diálogos modales |
+| Búsqueda por nombre | ✅ | Filtro en tiempo real |
+| Filtro por categoría | ✅ | Select con categorías activas |
+| Diseño responsivo | ✅ | Angular Material + CSS responsive |
+
+### 6. API RESTful
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Principios REST | ✅ | Status codes correctos, métodos HTTP |
+| Autenticación JWT | ✅ | Bearer token con expiración |
+
+### 7. Requisitos Adicionales
+
+| Requisito | Estado | Implementación |
+|-----------|--------|----------------|
+| Pruebas unitarias (>30%) | ✅ | xUnit, Moq, FluentAssertions |
+| Validación de entradas | ✅ | FluentValidation en DTOs |
+| Protección SQL Injection | ✅ | Entity Framework parametrizado |
+| README con instrucciones | ✅ | Este archivo |
+
+### Entregables
+
+| Entregable | Estado | Notas |
+|------------|--------|-------|
+| Código fuente en Git | ✅ | Repositorio con historial de commits |
+| Instrucciones de despliegue | ✅ | Docker y manual |
+| Pruebas unitarias (>30%) | ✅ | Tests de servicios y validadores |
+| Demo funcional local | ✅ | `docker-compose up` o desarrollo manual |
+
+### Tecnologías Requeridas
+
+| Tecnología | Estado | Usada |
+|------------|--------|-------|
+| Frontend: React, Vue.js o Angular | ✅ | Angular 19 |
+| Backend: .NET 6 o superior | ✅ | .NET 8 |
+| Base de datos: SQL Server, PostgreSQL o MongoDB | ✅ | SQL Server |
+| Docker | ✅ | Dockerfile + docker-compose |
+
+---
+
 ## Autor
 
 **Jose Murga**
